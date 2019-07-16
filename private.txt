@@ -2,7 +2,7 @@
 class PrivateVesparUpdater
 {
 	private $vesparTokenSlug  = 'vespar_token';
-	private $vesparApi        = 'http://localhost/api';
+	private $vesparApi        = 'https://api.vespar.ir';
 	private $vesparToken      = null;
 	private $vesparVersions   = __DIR__ . '/vesparVersions.txt';
 	private $vesparHeaderSlug = 'Vespar Slug';
