@@ -1,0 +1,48 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Vespar Updater\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2019-07-14 17:38+0000\n"
+"PO-Revision-Date: 2019-07-14 17:43+0000\n"
+"Last-Translator: admin <hormozdi.hooman@gmail.com>\n"
+"Language-Team: فارسی\n"
+"Language: fa_IR\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.3.0; wp-5.0.4"
+
+#: vespar-update.php:41
+msgid "Your vespar token is wrong"
+msgstr "کلید دسترسی شما به سرورهای وسپار اشتباه می باشد"
+
+#. Name of the plugin
+#: vespar-update.php:50 vespar-update.php:71
+msgid "Vespar Updater"
+msgstr "آپدیت کننده وسپار"
+
+#: vespar-update.php:77
+msgid "Vespar Token"
+msgstr "کلید دسترسی وسپار"
+
+#. Name of the plugin
+msgid "Vespar Update"
+msgstr "آپدیت کننده وسپار"
+
+#. Description of the plugin
+msgid "update private plugins and themes as simple as possible."
+msgstr "افزونه ها و پوسته های پریمیوم را مثل آب خوردن به روز کنید."
+
+#. URI of the plugin
+msgid "https://vespar.ir"
+msgstr "https://vespar.ir"
+
+#. Author of the plugin
+msgid "Hoomaan Hormozdi"
+msgstr "هومان هرمزدی"
+
+#. Author URI of the plugin
+msgid "https://github.com/Hormozdi"
+msgstr "https://github.com/Hormozdi"

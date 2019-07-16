@@ -1,0 +1,135 @@
+<?php
+class PrivateVesparUpdater
+{
+	private $vesparTokenSlug  = 'vespar_token';
+	private $vesparApi        = 'http://localhost/api';
+	private $vesparToken      = null;
+	private $vesparVersions   = __DIR__ . '/vesparVersions.txt';
+	private $vesparHeaderSlug = 'Vespar Slug';
+	public function __construct() {
+		$this->vesparToken = esc_attr( get_option( $this->vesparTokenSlug ) );
+		add_action ( 'vesparUpdaterDailyEvent', [ $this, 'vesparUpdaterCheckInfo'   ] );
+		add_filter ( 'extra_plugin_headers'   , [ $this, 'addExtraHeaderContent'    ] );
+		add_filter ( 'extra_theme_headers'    , [ $this, 'addExtraHeaderContent'    ] );
+		add_filter ( 'http_request_args'      , [ $this, 'removeUpdatedThings'      ], 5, 2 );
+		add_filter ( 'pre_set_site_transient_update_plugins', [ $this, 'preSetUpdatePlugins' ] );
+		add_filter ( 'pre_set_site_transient_update_themes' , [ $this, 'preSetUpdateThemes'  ] );
+	}
+	
+	public function removeUpdatedThings( $r, $url ) {
+		if ( 0 !== strpos( $url, $this->vesparApi ) ) {
+			return $r;
+		}
+		parse_str( parse_url( $url, PHP_URL_QUERY ), $urlParams );
+		if ( ! isset( $urlParams['action'] ) ) {
+			$vesparVersions = json_decode( file_get_contents( $this->vesparVersions ), true );
+			foreach ( $vesparVersions[$urlParams['type']] as $key => $vesparVersion ) {
+				if ( $vesparVersion['package'] == $url ) {
+					unset( $vesparVersions[$urlParams['type']][$key] );
+					break;
+				}
+			}
+			file_put_contents($this->vesparVersions, json_encode( $vesparVersions ) );
+		}
+		return $r;
+	}
+	public function preSetUpdatePlugins( $transient ) {
+		$vesparVersions = json_decode( file_get_contents( $this->vesparVersions ) );
+		$vesparVersions = isset( $vesparVersions->plugin ) ? $vesparVersions->plugin : [];
+		if ( $vesparVersions ) {
+			foreach ( $vesparVersions as $key => $vesparVersion ) {
+				if( ! isset( $transient->response[$key] ) ) {
+					$transient->response[$key] = (object)[];
+				}
+				if( ! isset( $transient->response[$key]->slug ) ) {
+					$transient->response[$key]->slug = explode('/', $key)[0];
+				}
+				$transient->response[$key]->new_version = $vesparVersion->new_version;
+				$transient->response[$key]->package     = $vesparVersion->package;
+				$transient->response[$key]->icons       = (array) $vesparVersion->icons;
+			}
+		}
+		return $transient;
+	}
+	public function preSetUpdateThemes( $transient ) {
+		$vesparVersions = json_decode( file_get_contents( $this->vesparVersions ) );
+		$vesparVersions = isset( $vesparVersions->theme ) ? $vesparVersions->theme : [];
+		if ( $vesparVersions ) {
+			foreach ( $vesparVersions as $key => $vesparVersion ) {$transient->response[$key] = [];
+				if( ! isset( $transient->response[$key] ) ) {
+					$transient->response[$key] = [];
+				}
+				if( ! isset( $transient->response[$key]->slug ) ) {
+					$transient->response[$key]['theme'] = $key;
+				}
+				$transient->response[$key]['new_version'] = $vesparVersion->new_version;
+				$transient->response[$key]['package']     = $vesparVersion->package;
+				$transient->response[$key]['url']         = $vesparVersion->url;
+			}
+		}
+		return $transient;
+	}
+	public function addExtraHeaderContent( $headers ) {
+		$headers[] = $this->vesparHeaderSlug;
+    	return $headers; 
+	}
+	public function vesparUpdaterCheckInfo( $token=null ) {
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . '..' . ADMIN_COOKIE_PATH . '/includes/plugin.php';
+		}
+		$vesparVersions = [];
+		if ( is_file( $this->vesparVersions ) ) {
+			$vesparVersions = json_decode( file_get_contents( $this->vesparVersions ), true );
+		}
+		$themes  = wp_get_themes();
+		$plugins = get_plugins();
+		$things  = array_merge( $themes, $plugins );
+		foreach ( $things as $key => $thing ) {
+			$slug    = is_array( $thing ) ? trim( $thing[$this->vesparHeaderSlug] ) : trim( $thing->get( $this->vesparHeaderSlug ) );
+			$version = is_array( $thing ) ? trim( $thing['Version'] ) : trim( $thing->get( 'Version' ) );
+			$type = is_array( $thing ) ? 'plugin' : 'theme';
+			
+			if ( $slug ) {
+				$data    = $this->VesparGetInfo( $slug, $version );
+				$version = $data->version;
+				$icons   = $data->icons;
+				$url     = $data->url;
+				if ( ! $version ) {
+					unset( $vesparVersions[$type][$key] );
+				} else {
+					$vesparVersions[$type][$key] = [
+						'package'     => $this->vesparApi . '?type=' . $type . '&slug=' . $slug . '&token=' . $token,
+						'new_version' => $version,
+						'icons'       => [ '2x' => $icons ],
+						'url'         => $url,
+					];
+				}
+			}
+		}
+		file_put_contents($this->vesparVersions, json_encode( $vesparVersions ) );
+	}
+	public function VesparGetInfo( $slug, $version ) {
+		$response = wp_remote_get( $this->vesparApi . '?action=info&version=' . $version . '&slug=' . $slug . '&token=' . $this->vesparToken );
+		if ( is_array( $response ) ) {
+			if ( $response['response']['code'] == 200 ) {
+				$body = $response['body'];
+				return json_decode($body);
+			} elseif ( $response['response']['code'] == 401 ) {
+				//Token is invalid
+			} elseif ( $response['response']['code'] == 400 ) {
+				//Slug is invalid
+			}
+		}
+	}
+	public function VesparCheckToken( $token ) {
+		$response = wp_remote_get( $this->vesparApi . '?action=checkToken&token=' . $token );
+		if ( is_array( $response ) ) {
+			if ( $response['response']['code'] == 200 ) {
+				return true;
+			}
+		}
+		return false;
+	}
+}
+$PrivateVesparUpdater = new PrivateVesparUpdater();
+?>
